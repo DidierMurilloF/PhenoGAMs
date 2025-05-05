@@ -5,7 +5,7 @@ library(patchwork)
 library(kableExtra)
 
 # Load and prepare data
-yield_data <- read.csv("data/FARGO_pREP_2025-04-18.csv")
+yield_data <- read.csv("FARGO_pREP_2025-04-18.csv")
 
 yield_data_single_gam <- yield_data |>
 	filter(LOCATION == "LOC1") |>
@@ -32,7 +32,7 @@ test_rho <- function(rho_val) {
 		method = "fREML",
 		AR.start = yield_data_single_gam$AR_start,
 		rho = rho_val
-	)$gcv.ubre  # Or extract logLik
+	)$gcv.ubre  
 }
 
 rhos <- seq(0.1, 0.95, by = 0.05)
@@ -367,18 +367,10 @@ ggplot(yield_data_single_asreml_res, aes(x = COLUMN, y = ROW, fill = residual)) 
 	)
 
 
-
-
-
-
-
-
-
 results <- compare_top_bottom_ranks_single_env(
 	BLUPs_gam_single, 
 	pred_asreml,
-	n = 50,
-	percent = 10,
+	n = 20,
 	reference = "asreml"
 )
 
@@ -427,255 +419,3 @@ ggplot(se_long, aes(x = TREATMENT, y = se, group = model, color = model)) +
 		axis.text.x = element_text(angle = 90, vjust = 0.5, size = 7),
 		plot.title = element_text(face = "bold")
 	)
-
-
-
-
-
-
-
-
-
-
-
-
-
-# GXE ---------------------------------------------------------------------
-
-library(mgcv)
-
-yield_data_met_gam <- yield_data |> 
-	mutate(
-		ROW_fc = as.factor(ROW),
-		COLUMN_fc = as.factor(COLUMN),
-		TREATMENT = factor(TREATMENT),
-		ENV = factor(LOCATION),
-		GxE = interaction(TREATMENT, ENV)
-	)
-
-gam_gxe <- bam(
-	YIELD ~ 
-		ENV +
-		s(ROW, by=ENV, bs="re") +
-		s(COLUMN, by=ENV, bs="re") +
-		s(TREATMENT, bs="re") +
-		# s(GxE, bs="re"),
-		ti(TREATMENT, ENV, bs = "re"),
-	data = yield_data_met_gam,
-	method = "fREML", 
-	discrete = TRUE
-)
-
-summary(gam_gxe)
-
-env_averages <- yield_data_met_gam |>
-	group_by(ENV) |>
-	summarise(
-		avg_ROW = mean(ROW, na.rm = TRUE),
-		avg_COLUMN = mean(COLUMN, na.rm = TRUE),
-		row_fc_center = as.factor(round(avg_ROW)),
-		col_fc_center = as.factor(round(avg_COLUMN)),
-		.groups = "drop"
-	)
-
-new_pred_data <- expand.grid(
-	TREATMENT = unique(yield_data_met_gam$TREATMENT),
-	ENV = unique(yield_data_met_gam$ENV)
-) |>
-	left_join(env_averages, by = "ENV") |>
-	mutate(
-		ROW = avg_ROW,
-		COLUMN = avg_COLUMN,
-		ROW_fc = row_fc_center,
-		COLUMN_fc = col_fc_center,
-		TREATMENT = factor(TREATMENT, levels = levels(yield_data_met_gam$TREATMENT)),
-		ENV = factor(ENV, levels = levels(yield_data_met_gam$ENV)),
-		GxE = factor(interaction(TREATMENT, ENV, drop = TRUE), 
-																						levels = levels(yield_data_met_gam$GxE))
-	)
-
-predictions <- predict(
-	gam_gxe,
-	newdata = new_pred_data,
-	type = "response",
-	se.fit = TRUE
-)
-
-blups_by_env <- new_pred_data |>
-	mutate(
-		predicted_value = predictions$fit,
-		se = predictions$se.fit
-	)
-
-blups_by_env
-
-
-# ASReml ------------------------------------------------------------------
-m1_met_aremls <- asreml(
-	fixed = YIELD ~ ENV,
-	random = ~fa(ENV, 1):TREATMENT,
-	residual = ~dsum(~idv(units) | ENV),
-	data = yield_data_met_gam
-)
-
-summary(m1_met_aremls)$varcomp
-
-m1_met_aremls <- update(m1_met_aremls)
-
-# m1_met_aremls <- asreml(
-# 	fixed = YIELD ~ ENV,
-# 	random = ~ corgh(ENV):TREATMENT,
-# 	residual = ~dsum(~idv(units) | ENV),
-# 	data = yield_data_met_gam
-# )
-
-# pred_m1_met <- predict(m1_met_aremls, classify = "TREATMENT")$pvals
-# 
-# cor(blups_with_ci$overall, pred_m1_met$predicted.value)
-
-pred_asreml_met_env <- predict(m1_met_aremls, classify = "ENV:TREATMENT")$pvals
-
-pred_asreml_met_env |> 
-	left_join(blups_by_env, by = c("ENV", "TREATMENT")) |> 
-	group_by(ENV) |> 
-	summarise(corr = cor(predicted_value, predicted.value))
-
-
-ranks_gam <- blups_by_env |>
-	group_by(ENV) |>
-	mutate(rank_gam = rank(-predicted_value, ties.method = "min")) |>
-	ungroup()
-
-ranks_asreml <- pred_asreml_met_env |>
-	rename(pred_asr = predicted.value) |>
-	group_by(ENV) |>
-	mutate(rank_asreml = rank(-pred_asr, ties.method = "min")) |>
-	ungroup()
-
-rank_comparison_by_env <- ranks_asreml |>
-	dplyr::inner_join(ranks_gam, by = c("ENV", "TREATMENT")) |>
-	dplyr::select(ENV, TREATMENT, rank_gam, rank_asreml, predicted_value, pred_asr) |>
-	dplyr::mutate(diff = rank_gam - rank_asreml)
-
-
-rank_comparison_by_env |>
-	arrange(desc(abs(diff))) |> 
-	head(20)
-
-# Compute Kendall correlation per ENV
-cor_text <- rank_comparison_by_env |>
-	group_by(ENV) |>
-	summarise(
-		kendall_corr = cor(rank_gam, rank_asreml, method = "kendall"),
-		.groups = "drop"
-	)
-cor_text
-
-library(ggplot2)
-library(dplyr)
-# Merge correlation labels back into the plot data
-rank_comparison_by_env <- rank_comparison_by_env |>
-	left_join(cor_text, by = "ENV")
-
-# Faceted plot with correlation label
-ggplot(rank_comparison_by_env, aes(x = rank_asreml, y = rank_gam)) +
-	geom_point(alpha = 0.6, color = "#0072B2") +
-	geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey30") +
-	facet_wrap(~ ENV, scales = "free") +
-	geom_text(
-		data = cor_text,
-		aes(x = Inf, y = -Inf, label = paste0("τ = ", round(kendall_corr, 3))),
-		hjust = 1.1, vjust = -0.5,
-		inherit.aes = FALSE,
-		size = 4,
-		fontface = "italic"
-	) +
-	labs(
-		title = "Treatment Ranking Comparison by Environment (GAM vs ASReml)",
-		x = "ASReml Rank",
-		y = "GAM Rank"
-	) +
-	theme_minimal(base_size = 13) +
-	theme(
-		strip.text = element_text(face = "bold"),
-		panel.grid.minor = element_blank()
-	)
-
-
-compare_top_bottom_ranks <- function(gam_df, asreml_df, n = 20, 
-																																					reference = c("gam", "asreml")) {
-	reference <- base::match.arg(reference)
-	
-	message("Selecting top and bottom ", n, " genotypes ...")
-	
-	stopifnot(all(c("ENV", "TREATMENT", "predicted_value") %in% names(gam_df)))
-	stopifnot(all(c("ENV", "TREATMENT", "predicted.value") %in% names(asreml_df)))
-	
-	gam_ranked <- gam_df |>
-		dplyr::group_by(ENV) |>
-		dplyr::mutate(rank_gam = rank(-predicted_value, ties.method = "min")) |>
-		dplyr::ungroup()
-	
-	asreml_ranked <- asreml_df |>
-		dplyr::rename(pred_asr = predicted.value) |>
-		dplyr::group_by(ENV) |>
-		dplyr::mutate(rank_asreml = rank(-pred_asr, ties.method = "min")) |>
-		dplyr::ungroup()
-	
-	merged <- dplyr::inner_join(gam_ranked, asreml_ranked, by = c("ENV", "TREATMENT")) |>
-		dplyr::select(ENV, TREATMENT, rank_gam, rank_asreml, predicted_value, pred_asr)
-	
-	# Select top and bottom n genotypes
-	top_subset <- merged |>
-		dplyr::group_by(ENV) |>
-		dplyr::arrange(rank_gam, .by_group = TRUE) |>
-		dplyr::slice_head(n = n) |>
-		dplyr::ungroup() |>
-		dplyr::mutate(section = "Top")
-	
-	bottom_subset <- merged |>
-		dplyr::group_by(ENV) |>
-		dplyr::arrange(desc(rank_gam), .by_group = TRUE) |>
-		dplyr::slice_head(n = n) |>
-		dplyr::ungroup() |>
-		dplyr::mutate(section = "Bottom")
-	
-	full_subset <- dplyr::bind_rows(top_subset, bottom_subset)
-	
-	# Compute Kendall correlation separately
-	kendall_summary <- full_subset |>
-		dplyr::group_by(ENV, section) |>
-		dplyr::summarise(
-			kendall_tau = cor(rank_gam, rank_asreml, method = "kendall"),
-			.groups = "drop"
-		)
-	
-	kendall_summary <- kendall_summary |>
-		dplyr::mutate(section = factor(section, levels = c("Top", "Bottom"))) |>
-		dplyr::arrange(section)
-	
-	list(
-		summary = kendall_summary,
-		ranks   = full_subset
-	)
-}
-
-
-
-
-results <- compare_top_bottom_ranks(
-	blups_by_env, 
-	pred_asreml_met_env, 
-	n = 30,
-	reference = "asreml"
-)
-
-
-results$summary  # Kendall correlation per ENV
-results$ranks |> head()
-
-
-
-
-
-

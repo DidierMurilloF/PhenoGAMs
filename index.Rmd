@@ -725,7 +725,9 @@ Our goal was not to determine which model is superior, but rather to explore how
 
 The full code used in this analysis is available on
 
-[![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)](https://github.com/DidierMurilloF/PhenoGams)  
+<a href="https://github.com/DidierMurilloF/PhenoGams" target="_blank">
+  <img src="https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white" alt="GitHub">
+</a>  
 
 ### References
 
@@ -736,9 +738,15 @@ This work draws inspiration from the book _Generalized Additive Models: An Intro
 
 **Didier Murillo** is a statistician and R Shiny developer specializing in agricultural data analytics at North Dakota State University (NDSU). His work focuses on experimental design, predictive pipelines, and the integration of genomic and phenotypic data for predictive modeling in plant breeding. He also develops robust R Shiny applications that transform complex analytical workflows into user-friendly web tools for researchers, breeders, and stakeholders
 
-Connect with Didier on  
-[![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)](https://github.com/DidierMurilloF)  
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/damurillof/)
+### Connect with Didier on  
+
+<a href="https://github.com/DidierMurilloF" target="_blank">
+  <img src="https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white" alt="GitHub">
+</a>  
+<a href="https://www.linkedin.com/in/damurillof/" target="_blank">
+  <img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=flat&logo=linkedin&logoColor=white" alt="LinkedIn">
+</a>
+
 
 
 
