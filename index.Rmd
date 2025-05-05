@@ -2,7 +2,7 @@
 title: "Smoothers in the Field: GAMs for Capturing Treatment Effects and Spatial Trends in Plant Breeding Trials"
 author: "Didier Murillo"
 date: "2025-05-05"
-description: "Explore how Generalized Additive Models (GAMs) can match ASReml in modeling spatial trends and estimating genotype effects in plant breeding trials."
+description: "Explore how Generalized Additive Models (GAMs) can modeling spatial trends and estimating genotype effects in plant breeding trials."
 output:
   distill::distill_article:
     highlight: kate
