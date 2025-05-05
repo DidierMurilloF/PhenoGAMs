@@ -1,5 +1,5 @@
 ---
-title: 'Smoothers in the Field: GAMs for Capturing Treatment Effects and Spatial Trends in Plant Breeding Trials'
+title: 'Smoothers in the Field: GAMs for Capturing Treatment Effects and Spatial Trends in Plant Breeding Field Trials'
 author: "Didier Murillo"
 date: "2025-05-05"
 output:
@@ -86,7 +86,7 @@ head(yield_data) |> kable()
 
 ### Basic GAM Model
 
-In a basic GAM, we replace strictly linear terms with smooth functions estimated from the data. For example, instead of assuming a linear relationship between yield and row, we estimate a smooth trend $f_1(ROW)$. The goal is to capture subtle trends in the field that would otherwise be modeled as random effects or spatial residuals.
+In a GAM model, we replace strictly linear terms with smooth functions estimated from the data. For example, instead of assuming a linear relationship between yield and row, we estimate a smooth function $f_1(ROW)$. The goal is to capture subtle trends in the field that would otherwise be modeled as random effects or spatial residuals.
 
 #### Model Equation:
 
@@ -119,7 +119,7 @@ gam_m1 <- bam(
 
 #### Genotype-Level Predictions
 
-To extract genotype-level predictions from the model, we predict treatment effects while fixing all spatial covariates at their field-centered values. The way we created the newdata set for GAM model prediction is showing below:
+To extract genotype-level predictions from the model, we predict treatment effects while fixing all spatial covariates at their field-centered values. The way we created the `newdata` set for GAM model prediction, as shown below:
 
 ```{r, echo=TRUE, eval=TRUE, comment=NA}
 # Center values for marginal prediction
@@ -173,7 +173,7 @@ BLUPs_gam_single |> head(10) |> kable()
 
 ### Basic ASReml Model
 
-To benchmark the performance of the GAM approach, we fit a traditional linear mixed model using the ASReml package. This model includes fixed effects for field layout (ROW and COLUMN), along with smooth spatial trends (`spl()`) and random effects for genotype (`TREATMENT`). The model setup mirrors the structure used in the GAM, allowing for a fair comparison of predictions and spatial adjustment.
+To evaluate the GAM approach in context, we fit a traditional linear mixed model using the ASReml package. This model includes fixed effects for field layout (ROW and COLUMN), along with smooth spatial trends (`spl()`) and random effects for genotype (`TREATMENT`). The model setup mirrors the structure used in the GAM, allowing for a fair comparison of best linear unbiased predictions (BLUPs) and spatial adjustment.
 
 ```{r, echo=FALSE, eval=TRUE}
 yield_data_single_asreml <- yield_data_single_gam |> 
@@ -213,7 +213,7 @@ suppressMessages({
 
 #### Genotype-Level Predictions - ASReml
 
-Once the ASReml model is fitted, extracting the predicted genotype is straightforward using the `predict()` function. We augment the predictions with 95% confidence intervals based on the standard errors:
+Once the ASReml model is fitted, extracting the predicted genotype is straightforward using the `predict()` function. We augmented the predictions with 95% confidence intervals based on the standard errors:
 
 ```{r, eval=FALSE, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 pred_asreml <- predict(asreml_m1, classify = "TREATMENT", sed = TRUE)$pvals
@@ -231,7 +231,7 @@ pred_asreml |>
 
 ### Model fit diagnostics
 
-To assess how well each model captures spatial variation and explains yield variability, we begin by examining standard diagnostic plots. These include residual histograms, residuals versus fitted values, and QQ-plots. We start with the Generalized Additive Model (GAM) fitted in the previous section.
+To assess how well each model captures spatial variation and explains yield variability, we begin by examining standard diagnostic plots. These include residual histograms, residuals versus fitted values, and QQ-plots. The following figure how these plot for the GAM model fitted in the previous section.
 
 ```{r, fig.align="c", fig.width=11, fig.height=3.5, echo=FALSE, eval=TRUE}
 # Residuals for model fit check
@@ -323,7 +323,7 @@ qq_plot <- ggplot(yield_data_single_asreml_res, aes(sample = residual)) +
 (hist_plot | resid_fit_plot | qq_plot)
 ```
 
-The diagnostic plots for both the GAM and ASReml models show some clear limitations. In the residuals vs. fitted values plots, we observe clustering of residuals, which likely reflect residual correlation among spatially adjacent plots. This pattern suggests that the current models have not fully accounted for spatial dependence in the errors. The QQ plots show deviations from normality, especially in the tails, and the histograms reveal slight skewness. These patterns point to remaining spatial variation or structure not yet modeled, indicating room for improvement in both approaches.
+The diagnostic plots for both the GAM and ASReml models show some clear issues. In the fitted values vs residuals, we observe clustering of residuals, which likely reflect residual correlation among spatially adjacent plots. This pattern suggests that the current models have not fully accounted for spatial dependence in the errors. The QQ plots show deviations from normality, especially in the tails, and the histograms reveal slight skewness. These patterns point to remaining spatial variation or structure not yet modeled, indicating room for improvement in both approaches.
 
 ### Improving the GAM Model
 
@@ -331,15 +331,17 @@ To further evaluate the flexibility of Generalized Additive Models, we introduce
 
 Additionally, we modeled residual correlation along the row dimension using an `AR(1)` structure. Since `mgcv::bam()` requires the autocorrelation parameter `rho` to be manually specified, we estimated it via a grid search and found the best-performing value to be `rho = 0.55`.
 
+The upgraded GAM model can be expressed as
+
 <div style="font-size: 80%">
 $$YIELD = f_1(ROW) + f_2(COLUMN) + f_3(ROW_{fc}) + f_4(COLUMN_{fc}) + f_5(TREATMENT) +$$
 $$f_6(ROW_{fc}, COLUMN_{fc})$$
 </div>
 Where:
 
-- $f_6$ is the tensor product with random effects (bs = "re") for both factors.
+- $f_6$ is the tensor product within Rows and Columns with random effects (bs = "re") for both factors.
 
-The extended GAM model is specified as follows:
+The GAM model is specified as follows:
 
 ```{r}
 gam_m2 <- bam(
@@ -355,7 +357,7 @@ gam_m2 <- bam(
 )
 ```
 
-The updated GAM model predictions are summarized below.
+The upgraded GAM model predictions are summarized below.
 
 ```{r, comment=NA, eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
 preds_treatment <- predict(gam_m2, newdata = newdata_gam, se.fit = TRUE, type = "response")
@@ -411,7 +413,7 @@ suppressMessages({
 
 #### Genotype-Level Predictions - ASReml
 
-The updated linear mixed model predictions are:
+The updated ASReml linear mixed model predictions are:
 
 ```{r, eval=FALSE, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 pred_asreml2 <- predict(asreml_m2, classify = "TREATMENT", sed = TRUE)$pvals
@@ -429,7 +431,7 @@ pred_asreml2 |>
 
 ### Model fit diagnostics
 
-Let us check the new models result diagnostics
+Let us check the new models result diagnostics. The following figure shows the residual histograms, fitted values vs residuals, and QQ-plots for the GAM model.
 
 ```{r, fig.align="c", fig.width=11, fig.height=3.5, echo=FALSE, eval=TRUE}
 # Residuals for model fit check
@@ -530,7 +532,7 @@ The new diagnostic plots show a substantial improvement in model fit for both AS
 
 - **QQ Plots:** Both models show closer adherence to the theoretical normal line, especially in the central part of the distribution. Some deviation remains in the tails, but the overall alignment supports the assumption of normally distributed residuals.
 
-Together, these results suggest that incorporating spatial structure (via splines in ASReml and tensor product + AR1 in GAM) significantly enhanced the models' ability to capture underlying field variability. Both models now provide a much more reliable basis for estimating treatment effects in this breeding trial.
+Together, these results suggest that incorporating spatial structure (modeling the residuals via (`AR1 ⊗ AR1`) in ASReml and tensor product + AR1 in GAM) significantly enhanced the models' ability to capture underlying field variability. Both models now provide a much more reliable basis for estimating treatment effects.
 
 #### Residuals heatmap
 
@@ -590,13 +592,7 @@ heatmat_asreml <- ggplot(yield_data_single_asreml_res2, aes(x = COLUMN, y = ROW,
   theme(legend.position = "right")
 ```
 
-These heatmaps show the spatial distribution of residuals across the field layout. The colors range from blue (negative residuals) to yellow (positive residuals), helping us quickly identify areas of under- or over-estimation.
-
-GAM model Residuals: The residuals are mostly centered around zero with just a few isolated high values, indicating that the model captures the spatial pattern well overall.
-
-ASReml Residuals: Similarly, the ASReml model shows good residual control with a few small clusters, suggesting that the spatial structure was effectively modeled.
-
-Both models show strong spatial fit, and these plots help confirm the lack of major residual patterns.
+The residuals from the GAM model are mostly centered around zero, with only a few isolated high values, indicating that the spatial pattern was well captured. Similarly, the ASReml model demonstrates good residual control, with only a few small clusters, suggesting effective modeling of the spatial structure. Overall, both models exhibit a strong spatial fit, and the residual plots confirm the absence of major unmodeled patterns.
 
 ### Model Predictions: Correlation and Rankings
 
@@ -608,11 +604,11 @@ To assess the agreement between the two modeling approaches, we compare the pred
 cor(BLUPs_gam_single2$predicted_value, pred_asreml2$predicted.value)
 ```
 
-The correlation between predicted genotype means from the GAM and ASReml models is remarkably close to 1.0. This high degree of agreement suggests that, despite structural and distributional differences in the underlying models, both approaches yield very similar overall treatment effects. It reinforces the idea that GAM can serve as a robust alternative for spatial modeling in field trials.
+The correlation between predicted genotype values from the GAM and ASReml models is remarkably close to 1.0. This high degree of agreement suggests that, despite structural and distributional differences in the underlying models, both approaches yield very similar overall treatment effects. It reinforces the idea that GAM can serve as a robust method for spatial modeling in field trials.
 
 #### Agreement in Genotype Rankings
 
-Accurate genotype ranking is critical in plant breeding, as decisions about advancement, selection, and crossing often rely on identifying the top-performing entries. To assess this, we compare the overall rank correlation between the two models using Kendall's tau, a non-parametric metric that reflects the consistency of pairwise orderings.
+Accurate genotype ranking is critical in plant breeding, as decisions about advancement, selection, and crossing often rely on identifying the top-performing entries. To assess this, we compare the overall rank correlation between the two models using `Kendall's tau`, a non-parametric metric that reflects the consistency of pairwise orderings.
 
 ```{r echo=TRUE, eval=TRUE, comment=NA}
 # GAM ranks
@@ -637,9 +633,9 @@ rank_comparison <- rank_gam_total |>
 cor(rank_comparison$rank_gam_total, rank_comparison$rank_asreml, method = "kendall")
 ```
 
-The Kendall's tau value for the full set of genotypes is high, indicating strong concordance in rankings between GAM and ASReml.
+The Kendall's tau value for the full set of genotypes is high, indicating strong concordance in rankings between GAM and ASReml models.
 
-To further simulate a breeder’s real-world decision-making, we computed Kendall's tau and the percentage of overlapping genotypes for several top-N selection thresholds. This analysis highlights how consistent the two models are in identifying the most promising genotypes.
+To further simulate a breeder’s real-world decision-making, we computed `Kendall's tau` and the percentage of overlapping genotypes for several top-N selection thresholds. This analysis highlights how consistent the two models are in identifying the most promising genotypes.
 
 ```{r, eval=TRUE, echo=FALSE}
 rankings <- data.frame(
@@ -655,9 +651,9 @@ rankings |> kable()
 ```
 
 
-As shown in the table, even when Kendall’s tau falls slightly below 1.0, the top-selected genotypes from both models remain nearly identical. This highlights an important insight for breeding decisions: small discrepancies in rank order do not necessarily alter selection outcomes, provided the composition of the top subset is stable. Notably, a Kendall correlation of 1.0 implies perfect agreement in both rank order and selection. However, even with slightly lower tau values, the models can select exactly the same genotypes—this occurs when minor differences in predicted values shift the internal order without changing the set itself.
+As shown in the table, even when `Kendall’s tau` falls slightly below 1.0, the top-selected genotypes from both models remain nearly identical. This highlights an important insight for breeding decisions: small discrepancies in rank order do not necessarily alter selection outcomes, provided the composition of the top subset is stable. Notably, a Kendall correlation of `1.0` implies perfect agreement in both rank order and selection. However, even with slightly lower tau values, the models can select exactly the same genotypes—this occurs when minor differences in predicted values shift the internal order without changing the set itself.
 
-We can visualize the rank agreement below. Each point represents a genotype, and the dashed line marks perfect concordance. The plot confirms that rankings from GAM and ASReml are highly aligned:
+We can visualize the rank agreement below. Each point represents a genotype, and the dashed line marks perfect concordance. The plot confirms that rankings from GAM and ASReml models are highly aligned:
 
 ```{r, fig.align="c", fig.width=8, fig.height=5, echo=FALSE, eval=TRUE}
 ggplot(rank_comparison, aes(x = rank_asreml, y = rank_gam_total)) +
@@ -683,7 +679,7 @@ ggplot(rank_comparison, aes(x = rank_asreml, y = rank_gam_total)) +
 
 ```
 
-We also examine the standard errors of the predicted values. Comparing these across models provides insight into how uncertainty is estimated. Despite their different formulations, both GAM and ASReml produce strikingly similar standard errors across genotypes:
+We also examine the standard errors of the predicted values. Comparing these across models provides insight into how uncertainty is estimated. 
 
 ```{r, fig.align="c", fig.width=12, fig.height=7, echo=FALSE, eval=TRUE}
 # Prepare long-format data
@@ -717,7 +713,7 @@ ggplot(se_long, aes(x = TREATMENT, y = se, group = model, color = model)) +
   my_theme
 ```
 
-It is reassuring to see that the uncertainty associated with genotype means is consistently estimated across both models. This further supports the robustness of GAMs as a tool for spatial modeling in plant breeding field trials.
+Despite their different formulations, both GAM and ASReml produce strikingly similar standard errors across genotypes. The GAM model appears slightly more conservative in its uncertainty estimates. Overall, it is reassuring to see that both models consistently estimate the uncertainty associated with genotype predicted values.
 
 ### Conclusions
 
@@ -733,12 +729,12 @@ The full code used in this analysis is available on
 
 ### References
 
-This work draws inspiration from _Generalized Additive Models: An Introduction with R (2nd Edition)_ by Simon Wood, an accessible and practical guide to understanding and implementing GAMs using the `mgcv` package.
+This work draws inspiration from the book _Generalized Additive Models: An Introduction with R (2nd Edition)_ by Simon Wood, an accessible and practical guide to understanding and implementing GAMs using the `mgcv` package.
 
 
 ### About the Author
 
-**Didier Murillo** is a statistician and R Shiny developer specializing in agricultural data analytics at North Dakota State University (NDSU). His research focuses on spatial modeling, predictive pipelines, and the integration of genomic and phenotypic data in plant breeding programs. He also develops robust R Shiny applications that transform analytical pipelines into user-friendly web apps for researchers, breeders, and stakeholders.
+**Didier Murillo** is a statistician and R Shiny developer specializing in agricultural data analytics at North Dakota State University (NDSU). His work focuses on experimental design, predictive pipelines, and the integration of genomic and phenotypic data for predictive modeling in plant breeding. He also develops robust R Shiny applications that transform complex analytical workflows into user-friendly web tools for researchers, breeders, and stakeholders
 
 Connect with Didier on  
 [![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)](https://github.com/DidierMurilloF)  
