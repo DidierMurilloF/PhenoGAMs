@@ -1,11 +1,10 @@
 ---
-title: 'Smoothers in the Field: GAMs for Capturing Treatment Effects and Spatial Trends
-  in Plant Breeding Field Trials'
+title: 'Smoothers in the Field: GAMs for Capturing Treatment Effects and Spatial Trends in Plant Breeding Trials'
 author: "Didier Murillo"
-date: "2025-05-03"
+date: "2025-05-05"
 output:
   distill::distill_article:
-    highlight: kate  # or choose 'tango', 'espresso', etc.
+    highlight: kate
 ---
 
 ```{r setup, include=FALSE, comment=NA}
@@ -16,6 +15,9 @@ knitr::opts_chunk$set(
   comment = NA
 )
 ```
+
+<img src="images/Smoothers.png" style="width:100%; display:block; margin:auto;" alt="GAM spatial modeling banner">
+
 
 ```{r, echo=FALSE, eval=TRUE, warning=FALSE, comment=NA, include=FALSE}
 suppressMessages({
@@ -46,19 +48,18 @@ my_theme <- theme_minimal(base_size = 13) +
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank()
   )
-
 ```
 
 
 ### Introduction
 
-Agricultural field trials are essential for evaluating genotype performance across diverse environments in plant breeding. Yet spatial trends—driven by soil variability, irrigation, or microclimatic gradients—often introduce noise that can obscure the true genetic signal. Traditional linear mixed models have long served as the standard approach for accounting for this spatial structure while estimating treatment effects.
+Agricultural field trials are essential for evaluating genotype performance across diverse environments in plant breeding. Yet spatial trends—driven by soil variability, irrigation, or microclimatic gradients—often introduce noise that can obscure the true genetic signal. Traditional linear mixed models have long been the standard approach for accounting for this spatial structure while estimating treatment effects.
 
-Generalized Additive Models (GAMs) offer a flexible, non-parametric alternative capable of modeling smooth spatial surfaces and complex field patterns. Despite their strong theoretical appeal, GAMs remain underutilized in plant breeding applications. In this article, we explore how GAMs can be applied to field trial data and compare their performance to a classical spatial mixed model built using ASReml. We focus on model fit diagnostics, spatial trend capture, and agreement in genotype rankings—measured using correlation and Kendall's tau—to assess their utility in modern breeding experiments.
+Generalized Additive Models (GAMs) offer a flexible, non-parametric alternative capable of modeling smooth spatial surfaces and complex field patterns. Despite their strong theoretical appeal, GAMs remain underutilized in plant breeding applications. In this article, we explore how GAMs can be applied to field trial data and compare their performance to a classical spatial mixed model built using ASReml. We focus on model-fit diagnostics, spatial trend capture, and agreement in genotype rankings—measured using correlation and Kendall's tau—to assess their utility in modern breeding experiments.
 
 ### Data
 
-The dataset originates from a partially replicated (p-rep) field trial design involving 180 genotypes (treatments) evaluated across five environments. For the purposes of this article, we focus on a single environment to illustrate a within-location spatial analysis. The data include field layout information (row and column positions), genotype identifiers (treatments), and grain yield as the primary response variable.
+The dataset originates from a simulation study based on a partially replicated (p-rep) field trial design, involving 180 genotypes (treatments) evaluated across five environments. For the purposes of this article, we focus on a single environment to illustrate a within-location spatial analysis. The dataset includes field layout information (row and column positions), genotype identifiers (treatments), and grain yield as the primary response variable.
 
 Note: Throughout this article, we use the terms genotype and treatment interchangeably. Each treatment corresponds to a unique genotype evaluated in the field trial.
 
@@ -410,7 +411,7 @@ suppressMessages({
 
 #### Genotype-Level Predictions - ASReml
 
-The new fashion Linear Mixed model predictions are now:
+The updated linear mixed model predictions are:
 
 ```{r, eval=FALSE, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 pred_asreml2 <- predict(asreml_m2, classify = "TREATMENT", sed = TRUE)$pvals
@@ -682,7 +683,7 @@ ggplot(rank_comparison, aes(x = rank_asreml, y = rank_gam_total)) +
 
 ```
 
-We also examine the standard errors of the predicted treatment means. Comparing these across models provides insight into how uncertainty is estimated. Despite their different formulations, both GAM and ASReml produce strikingly similar standard errors across genotypes:
+We also examine the standard errors of the predicted values. Comparing these across models provides insight into how uncertainty is estimated. Despite their different formulations, both GAM and ASReml produce strikingly similar standard errors across genotypes:
 
 ```{r, fig.align="c", fig.width=12, fig.height=7, echo=FALSE, eval=TRUE}
 # Prepare long-format data
@@ -716,7 +717,7 @@ ggplot(se_long, aes(x = TREATMENT, y = se, group = model, color = model)) +
   my_theme
 ```
 
-It is reassuring to see that the uncertainty associated with genotype means is consistently estimated across both models. This further supports the robustness of GAMs as a complementary tool for spatial modeling in plant breeding field trials.
+It is reassuring to see that the uncertainty associated with genotype means is consistently estimated across both models. This further supports the robustness of GAMs as a tool for spatial modeling in plant breeding field trials.
 
 ### Conclusions
 
@@ -726,7 +727,9 @@ Our goal was not to determine which model is superior, but rather to explore how
 
 ### Reproducibility
 
-The full code used in this analysis is available on GitHub: github.com/DidierMurilloF/PhenoGams
+The full code used in this analysis is available on
+
+[![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)](https://github.com/DidierMurilloF/PhenoGams)  
 
 ### References
 
@@ -735,10 +738,12 @@ This work draws inspiration from _Generalized Additive Models: An Introduction w
 
 ### About the Author
 
-**Didier Murillo** is a statistician and R Shiny developer specializing in agricultural data analytics at North Dakota State University (NDSU). His research focuses on spatial modeling, predictive pipelines, and the integration of genomic and phenotypic data in plant breeding programs. He is also an expert in developing robust R Shiny applications that integrate analytical pipelines into user-friendly tools for researchers, breeders, and other stakeholders.
+**Didier Murillo** is a statistician and R Shiny developer specializing in agricultural data analytics at North Dakota State University (NDSU). His research focuses on spatial modeling, predictive pipelines, and the integration of genomic and phenotypic data in plant breeding programs. He also develops robust R Shiny applications that transform analytical pipelines into user-friendly web apps for researchers, breeders, and stakeholders.
 
-Connect with Didier on [![GitHub Repo](https://img.shields.io/badge/GitHub-PhenoGams-blue?logo=github)](https://github.com/DidierMurilloF/PhenoGams)
-or [LinkedIn](https://www.linkedin.com/in/damurillof/).
+Connect with Didier on  
+[![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)](https://github.com/DidierMurilloF)  
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/damurillof/)
+
 
 
 
